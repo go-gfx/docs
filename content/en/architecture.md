@@ -1,6 +1,11 @@
-# Architecture
+---
+title: "Architecture"
+weight: 30
+---
 
-## Why a foundation
+# Architecture {#architecture}
+
+## Why a foundation {#why-a-foundation}
 
 2D graphics in most languages means binding a C engine — Skia, Cairo, Pixman.
 Across the Go fleet, several libraries had each grown their *own* copy of the
@@ -33,7 +38,7 @@ below, many renderers on top.
                               └───────────────────────┘
 ```
 
-## Boundaries
+## Boundaries {#boundaries}
 
 go-gfx deliberately draws its edges:
 
@@ -49,7 +54,7 @@ go-gfx deliberately draws its edges:
 - **Not 3D.** The bespoke rasterizers in the game/virtio ports are deliberate C
   ports or 3D pipelines and are out of scope.
 
-## Dependencies
+## Dependencies {#dependencies}
 
 go-gfx depends on **nothing** fleet-side at runtime. Its only optional
 dependency is [go-asmgen](https://github.com/go-asmgen), pulled in *at code
@@ -57,7 +62,7 @@ generation time* to emit SIMD assembly for hot kernels; the committed library
 keeps a zero-dependency `go.mod`. The whole module cross-compiles to a static
 binary on all six of Go's 64-bit targets.
 
-## Consumers
+## Consumers {#consumers}
 
 | Consumer | Builds on | Uses it for |
 | --- | --- | --- |
