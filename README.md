@@ -1,15 +1,14 @@
 # go-gfx docs
 
 Versioned documentation for [go-gfx](https://github.com/go-gfx/gfx), the pure-Go
-2D graphics foundation. Built with [MkDocs Material](https://squidfunk.github.io/mkdocs-material/)
-and versioned with [mike](https://github.com/jimporter/mike); published to the
+2D graphics foundation. Built with [Hugo](https://gohugo.io/) and this fleet's [Hextra fork](https://github.com/tannevaled/hextra) — upstream Hextra plus the opt-in features the fleet's sites use; published to the
 `gh-pages` branch and served at **<https://go-gfx.github.io/docs/>**.
 
 ## Local preview
 
-```sh
-pip install -r requirements.txt
-mkdocs serve
+```bash
+git submodule update --init --recursive   # themes/hextra, pinned at a release tag
+hugo server                               # http://localhost:1313
 ```
 
 ## Publishing

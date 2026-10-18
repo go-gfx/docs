@@ -1,10 +1,15 @@
-# Packages
+---
+title: "Packages"
+weight: 20
+---
+
+# Packages {#packages}
 
 go-gfx is a single Go module, `github.com/go-gfx/gfx`, split into focused
 packages. Import only what you need; each package is usable on its own and
 depends on nothing third-party.
 
-## geometry
+## geometry {#geometry}
 
 Points, rectangles and affine transforms — the coordinate math every other layer
 shares.
@@ -17,7 +22,7 @@ shares.
 Used pervasively: a resize is a scale transform, a codec crops with a `Rect`, a
 vector fill maps device space to user space through an `Affine`.
 
-## color
+## color {#color}
 
 Colour science done correctly, in linear light where it matters.
 
@@ -29,7 +34,7 @@ Colour science done correctly, in linear light where it matters.
 This is the package that keeps compositing and resampling from producing the
 dark-fringe artifacts that naive gamma-space math causes.
 
-## raster
+## raster {#raster}
 
 The shared pixel-buffer and pixel-format substrate — the common image surface
 every consumer reads and writes.
@@ -41,7 +46,7 @@ every consumer reads and writes.
 `raster` is the hand-off type: go-images processes it, go-widgets/painter draws
 into it, go-webengine paints layout onto it.
 
-## resample
+## resample {#resample}
 
 High-quality image resizing, separable and weight-precomputed.
 
@@ -54,7 +59,7 @@ High-quality image resizing, separable and weight-precomputed.
 This is the first package landing in the module; go-images' `Resize` and the
 desktop thumbnailer are the first consumers.
 
-## codec
+## codec {#codec}
 
 One shared set of image decoders and encoders, so no consumer hand-rolls its
 own.
@@ -63,7 +68,7 @@ own.
 - Subsumes the ad-hoc ICNS/ICO decoding the desktop stack used to carry, and the
   image loading go-webengine needs.
 
-## vector
+## vector {#vector}
 
 The 2D vector engine renderers build on instead of rolling their own.
 
