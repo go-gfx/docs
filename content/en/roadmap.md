@@ -21,6 +21,11 @@ one primitive at a time).
 - **`raster`** + **`color`** (premultiplied alpha) — the pixel-buffer substrate
   and the colour math `resample` composites through.
 
+- **[`webgpu`]({{< relref "webgpu.md" >}})** — a second module,
+  `github.com/go-gfx/webgpu`: WebGPU for Go in the browser, with batched
+  encoding and surfaces. It is in development on `main`; v0.1.0 is pending.
+  go-wasmcontainers/gpu and the go-quake1 renderer are its first consumers.
+
 ## Next — shared codecs {#next-shared-codecs}
 
 - **`codec`** — PNG, JPEG, WebP, ICO, ICNS, GIF, TIFF, subsuming the hand-rolled
