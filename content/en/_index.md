@@ -58,6 +58,8 @@ and `color`. This documentation tracks the module as it grows — see the
 ## Where to go next {#where-to-go-next}
 
 - [Packages]({{< relref "packages.md" >}}) — what each package provides.
+- [WebGPU (browser)]({{< relref "webgpu.md" >}}) — `github.com/go-gfx/webgpu`,
+  WebGPU for Go programs in the browser (in development).
 - [Architecture]({{< relref "architecture.md" >}}) — the foundation layering and why it exists.
 - [Roadmap]({{< relref "roadmap.md" >}}) — the plan and what ships today.
 
