@@ -11,9 +11,10 @@ program built with `GOOS=js GOARCH=wasm` that runs in a window or a worker. It
 is the shared layer under the go-wasmcontainers GPU host (`wasi:webgpu`,
 `wasi-nn`) and the browser game renderers (go-quake1).
 
-{{< callout type="warning" >}}
-**In development, not released.** The API below is on `main`; the first
-release, v0.1.0, is pending.
+{{< callout type="info" >}}
+**Released: v0.1.0.** Install it with `go get github.com/go-gfx/webgpu@v0.1.0`.
+Before 1.0, a minor version may change the API. The go-wasmcontainers GPU
+host runs on this release.
 {{< /callout >}}
 
 ```go
