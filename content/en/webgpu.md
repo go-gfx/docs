@@ -89,10 +89,30 @@ constraint. It contains the opcodes, `wire.Decode` (the Go reader) and
 object id through a mapping and refuses any id the mapping does not
 grant. A stream recorded in one place can then be checked and replayed
 against another object table without a second implementation of the
-format. The first user is go-virtio/gpu's experimental
+format. `copyTextureToTexture` is also in the batch, as
+`Recorder.CopyTextureToTexture`. Adding it moved `StreamVersion` to 2.
+
+Work recorded somewhere else can now reach a device in the browser:
+
+- **Objects.** `EncodeDescriptor` turns a creation descriptor into bytes
+  that name every referenced object by id in a header
+  (`wire.RemapDescriptor` translates those ids). `DecodeDescriptor`
+  rebuilds the descriptor with the receiver's objects. It refuses unknown
+  fields, a wrong reference count and references of the wrong type.
+- **Streams.** `Device.Replay(words, data, refs...)` submits a stream
+  that names only the granted objects (`ReplayID` gives their ids). The
+  stream is checked with `wire.Decode` first.
+- **The remote device.** Outside the browser, `NewRemoteDevice(sink, …)`
+  implements the creation calls, `Queue.WriteBuffer` and
+  `Recorder.Submit` by sending descriptors and streams to a
+  `RemoteSink`. It uses the browser path's checks and quotas. Readback,
+  `WriteTexture` and encoders are not carried yet.
+
+The first user is go-virtio's
 [webgpu-batch](https://github.com/go-virtio/gpu/blob/main/docs/WEBGPU.md)
-context, which carries streams from a VM guest to a WebGPU host. No such
-host exists yet.
+virtio-gpu context. A VM guest's go-gfx/webgpu program sends its work to
+the [gpudev](https://github.com/go-virtio/gpudev) host, which replays it
+on the browser's GPU. That path is validated in Chromium on Apple Metal.
 
 Measured on an Apple M4 Max, Chromium 143, Metal, CPU time per frame. The
 machine was loaded during these runs (1-minute load 10 to 16), so treat the
