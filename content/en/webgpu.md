@@ -83,6 +83,17 @@ browser test holds both to the same verdict on thousands of mutated streams.
 Submissions are numbered on a timeline (package `timeline`): completing one
 completes every earlier one, the fence model of virtio-gpu.
 
+The stream format is exported as package `wire`, which has no GOOS
+constraint. It contains the opcodes, `wire.Decode` (the Go reader) and
+`wire.StreamVersion`. It also has `wire.Remap`, which rewrites every
+object id through a mapping and refuses any id the mapping does not
+grant. A stream recorded in one place can then be checked and replayed
+against another object table without a second implementation of the
+format. The first user is go-virtio/gpu's experimental
+[webgpu-batch](https://github.com/go-virtio/gpu/blob/main/docs/WEBGPU.md)
+context, which carries streams from a VM guest to a WebGPU host. No such
+host exists yet.
+
 Measured on an Apple M4 Max, Chromium 143, Metal, CPU time per frame. The
 machine was loaded during these runs (1-minute load 10 to 16), so treat the
 numbers as indicative:
