@@ -67,6 +67,16 @@ own.
 - Decoders/encoders for **PNG, JPEG, WebP, ICO, ICNS, GIF, TIFF**.
 - Subsumes the ad-hoc ICNS/ICO decoding the desktop stack used to carry, and the
   image loading go-webengine needs.
+- **Netpbm and QOI headers are checked against the file** (v0.36.2): the
+  decoders refuse a header that describes more raster than the file holds,
+  before allocating. A 14-byte QOI header used to ask the allocator for 4.4 TB.
+  See [What a Netpbm or QOI header may ask for](https://github.com/go-gfx/gfx#what-a-netpbm-or-qoi-header-may-ask-for)
+  ([PR #82](https://github.com/go-gfx/gfx/pull/82)).
+- **ICO is decoded by `codec` itself** (v0.36.3), no longer through a
+  third-party package: only the chosen directory entry is decoded, nothing is
+  allocated from a size field, and alpha follows Chromium's alpha/AND-mask
+  rule. See [What an ICO directory may ask for](https://github.com/go-gfx/gfx#what-an-ico-directory-may-ask-for)
+  ([PR #83](https://github.com/go-gfx/gfx/pull/83)).
 
 ## vector {#vector}
 
