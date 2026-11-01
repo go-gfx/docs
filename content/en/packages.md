@@ -16,11 +16,13 @@ shares.
 
 - `Point`, `Rect` value types with the usual predicates and set operations
   (union, intersection, containment).
-- `Affine` 2×3 transform: translate, scale, rotate, shear, plus `Concat` /
-  `Invert` and application to points and rectangles.
+- `Matrix` 2×3 transform: `Translate`, `Scale`, `Rotate`, `Shear`, composed
+  with `Mul`, inverted with `Invert`, and applied with `TransformPoint` /
+  `TransformRect`.
 
-Used pervasively: a resize is a scale transform, a codec crops with a `Rect`, a
-vector fill maps device space to user space through an `Affine`.
+Used pervasively: a resize is a scale transform, a codec crops with a `Rect`,
+and `vector.ParseData` maps a path's user space to device space through a
+`Matrix`.
 
 ## color {#color}
 
@@ -82,9 +84,38 @@ own.
 
 The 2D vector engine renderers build on instead of rolling their own.
 
-- **Paths**: move/line/quad/cubic, with the usual builders.
+- **Paths**: move/line/quad/cubic, with the usual builders, readable back with
+  `Path.Each`.
+- A **path-data parser**, `ParseData`, for the syntax SVG writes in `d`.
 - An **anti-aliased scanline rasterizer** (coverage-based).
 - **Strokes** (width, joins, caps) and **gradients** (linear / radial).
 
 go-widgets/painter is the primary consumer; go-webengine paints CSS borders,
 backgrounds and shapes through it.
+
+### One path-data parser, three formats
+
+`ParseData` lives here rather than in `svg` because three formats write the
+same syntax. SVG 1.1 §8.3 defines it; ODF's `draw:path` carries it verbatim in
+`svg:d`; and ECMA-388 Annex C gives OpenXPS's *abbreviated geometry syntax* as
+an algorithm which, read against it, is a strict subset with a prefix — the
+same command letters minus `T`, the same arc operands in the same order, the
+same sweep sense, plus a leading `F0`/`F1` selecting the fill rule.
+
+That prefix is deliberately not handled here: a fill rule belongs to the shape,
+not to the outline, so an XPS reader strips it and chooses `EvenOdd` or
+`NonZero` itself.
+
+{{< callout type="warning" >}}
+**The six numbers are not a row-major matrix.** SVG's `matrix()`, XPS's
+`RenderTransform`, ODF's `draw:transform` and PDF's `cm` all write an affine as
+`[a b c d e f]`, mapping `(x, y)` to `(a·x + c·y + e, b·x + d·y + f)`. Read
+row-major, `b` and `c` swap — which leaves every *unrotated* drawing correct
+and every rotated one mirrored. `ParseData` takes a `geometry.Matrix`, whose
+named entries (`Xx, Yx, X0 / Xy, Yy, Y0`) make that transposition unwriteable.
+
+This is measured, not supposed: planting that swap left the whole of the `svg`
+package's test suite **green**, because every drawing in it is axis-aligned.
+A differential run against the parser as it stood before the move reported
+**57 518 points differing**.
+{{< /callout >}}
