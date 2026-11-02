@@ -119,3 +119,24 @@ package's test suite **green**, because every drawing in it is axis-aligned.
 A differential run against the parser as it stood before the move reported
 **57 518 points differing**.
 {{< /callout >}}
+
+## svg {#svg}
+
+`svg.Rasterize` draws an SVG document to a straight-alpha surface; `svg.Walk`
+hands its shapes to a sink instead.
+
+### opacity is group compositing
+
+Since v0.41.0 `opacity` is honoured on `<g>`, on shapes, on `<image>`, on a
+nested `<svg>` and on the root. Following SVG 1.1 §14.5 (Object and group
+opacity) and CSS Color 4, the element is drawn whole into an offscreen buffer,
+which is then blended onto what is beneath **once**. It is not a per-child
+multiplication of `fill-opacity`: two opaque rects in `<g opacity="0.5">`
+overlap at alpha 128, not 191. `opacity` is not inherited, and nested groups
+multiply.
+
+- **Nesting cap of 8.** Each open opacity group is one more `W×H×4`-byte
+  surface, so at most 8 are honoured at once; a group nested deeper is drawn
+  without its own `opacity`.
+- **`Walk` reports it.** `Walk` has no surface to composite on, so `opacity`
+  appears in `WalkResult.Unsupported` rather than being dropped silently.
