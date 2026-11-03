@@ -12,7 +12,7 @@ is the shared layer under the go-wasmcontainers GPU host (`wasi:webgpu`,
 `wasi-nn`) and the browser game renderers (go-quake1).
 
 {{< callout type="info" >}}
-**Released: v0.1.0.** Install it with `go get github.com/go-gfx/webgpu@v0.1.0`.
+**Released: v0.7.0.** Install it with `go get github.com/go-gfx/webgpu@v0.7.0`.
 Before 1.0, a minor version may change the API. The go-wasmcontainers GPU
 host runs on this release.
 {{< /callout >}}
@@ -105,8 +105,39 @@ Work recorded somewhere else can now reach a device in the browser:
 - **The remote device.** Outside the browser, `NewRemoteDevice(sink, …)`
   implements the creation calls, `Queue.WriteBuffer` and
   `Recorder.Submit` by sending descriptors and streams to a
-  `RemoteSink`. It uses the browser path's checks and quotas. Readback,
-  `WriteTexture` and encoders are not carried yet.
+  `RemoteSink`. It uses the browser path's checks and quotas.
+  `WriteTexture` and encoders are not carried; read-back is (below).
+
+### Read-back {#read-back}
+
+`mapAsync` is asynchronous, which a replayed stream cannot express. So
+`Recorder.ReadBuffer(buf, offset, size)` records `wire.ReadBuffer` (opcode 34,
+`StreamVersion` 4): once the submit's GPU work has completed, the replayer
+maps the range, copies it into a **read window** of the submit and unmaps.
+`Submit` returns the bytes in the `Readback`. The rules are those of
+`GPUBuffer.mapAsync`: the buffer has `MAP_READ` (allowed only with
+`COPY_DST`, so the data is first copied there with `CopyBufferToBuffer`), the
+offset is a multiple of 8, the size a nonzero multiple of 4, the range inside
+the buffer. The window is bounded per submit by `Quota.ReadBytes`, and never
+above `wire.MaxReadWindow` (64 MiB). On a remote device the sink implements
+`ReadSink`, and `Buffer.MapAsync(ctx, MapModeRead, …)` works on top of it.
+
+Measured in Chromium on Apple Metal (one submit, replay to bytes in the
+window): about 124 µs for a 4 KiB read and 155 µs for 1 MiB, or 270 µs and
+320 µs when the submit also runs a compute pass and the buffer copy.
+
+### The host side: package `batch` {#batch}
+
+Package `batch` (no GOOS constraint) is the host half of a batched stream,
+without a transport. A `Context` holds one guest's private object ids over a
+`Backend` and offers the three messages every transport carries: `Create`,
+`Destroy` and `Stream`. Ids are translated before the backend sees anything,
+a failed message loses the context, and the reads of a stream are checked
+before it runs (a backend that can read, a window within `Config.MaxRead`,
+1 MiB by default, `MAP_READ` buffers, ranges inside the buffers and the
+window). Under `GOOS=js`, `NewDeviceBackend(device)` is the backend on a
+browser device. go-virtio's gpudev (v0.2.0) is built on it, and so will be
+the go-wasmcontainers host module.
 
 The first user is go-virtio's
 [webgpu-batch](https://github.com/go-virtio/gpu/blob/main/docs/WEBGPU.md)

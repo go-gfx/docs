@@ -23,7 +23,7 @@ one primitive at a time).
 
 - **[`webgpu`]({{< relref "webgpu.md" >}})** — a second module,
   `github.com/go-gfx/webgpu`: WebGPU for Go in the browser, with batched
-  encoding and surfaces. **Released as v0.1.0.** go-wasmcontainers/gpu runs on
+  encoding, read-back and surfaces. **Released as v0.7.0.** go-wasmcontainers/gpu runs on
   it; the go-quake1 renderer is the next consumer.
 
 ## Next — shared codecs {#next-shared-codecs}
