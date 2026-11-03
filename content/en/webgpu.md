@@ -12,7 +12,7 @@ is the shared layer under the go-wasmcontainers GPU host (`wasi:webgpu`,
 `wasi-nn`) and the browser game renderers (go-quake1).
 
 {{< callout type="info" >}}
-**Released: v0.7.0.** Install it with `go get github.com/go-gfx/webgpu@v0.7.0`.
+**Released: v0.8.0.** Install it with `go get github.com/go-gfx/webgpu@v0.8.0`.
 Before 1.0, a minor version may change the API. The go-wasmcontainers GPU
 host runs on this release.
 {{< /callout >}}
@@ -138,6 +138,14 @@ before it runs (a backend that can read, a window within `Config.MaxRead`,
 window). Under `GOOS=js`, `NewDeviceBackend(device)` is the backend on a
 browser device. go-virtio's gpudev (v0.2.0) is built on it, and so will be
 the go-wasmcontainers host module.
+
+Since v0.8.0, `wire.CheckRanges` refuses, before the backend or `replay.js`
+sees the stream, a `WriteBuffer` or `CopyBufferToBuffer` range outside its
+buffer, an indirect dispatch or draw whose arguments leave the buffer, and a
+`Dispatch` above `maxComputeWorkgroupsPerDimension` (65535, or
+`batch.Config.MaxWorkgroups`). Errors wrap `wire.ErrRange`. The check runs in
+`batch.Context.Stream` and `Device.Replay`; `wire.RemapCmds` is new, and
+`FuzzCheckRanges` fuzzes the check.
 
 The first user is go-virtio's
 [webgpu-batch](https://github.com/go-virtio/gpu/blob/main/docs/WEBGPU.md)
