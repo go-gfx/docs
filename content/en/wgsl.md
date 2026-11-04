@@ -33,6 +33,22 @@ wgsl fmt -w shader.wgsl
 * **Other back ends.** `Info` carries types, resolved declarations, struct
   layouts and entry points, so a WGSL to MSL emitter can be built on it.
 
+## Loop budgets {#loop-budget}
+
+`transform.LoopBudget` (and `wgsl transform`) rewrites every `loop`, `for` and
+`while` so that it counts iterations against a budget taken from an `override`
+or a uniform `u32`. Past the budget the loop sets an `atomic<u32>` flag in a
+storage buffer and breaks, so the host can tell a truncated run from a complete
+one. The rewrite works on the parse tree only, never on the checker's verdict.
+It was run on an Apple GPU through Chrome WebGPU: a 10^8-iteration loop is cut
+at the budget with the flag set, and a short loop is unchanged.
+
+{{< callout type="warning" >}}
+The browser remains the validation authority. `wgsl check` is not yet a
+security boundary: against the CTS it still wrongly accepts 7,432 invalid
+cases and wrongly rejects 866 valid ones.
+{{< /callout >}}
+
 ## Bounds
 
 `Limits` caps the source size, the token count and the nesting depth. Deeply
