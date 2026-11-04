@@ -45,8 +45,9 @@ at the budget with the flag set, and a short loop is unchanged.
 
 {{< callout type="warning" >}}
 The browser remains the validation authority. `wgsl check` is not yet a
-security boundary: against the CTS it still wrongly accepts 7,432 invalid
-cases and wrongly rejects 866 valid ones.
+security boundary: against the CTS it still wrongly accepts 88 invalid cases
+(uniformity analysis is missing, so its 91,497 cases are skipped) and wrongly
+rejects none of the 130,057 valid ones.
 {{< /callout >}}
 
 ## Bounds
