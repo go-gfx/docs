@@ -5,7 +5,7 @@ weight: 27
 
 # 2D on the GPU {#gpu2d}
 
-[`github.com/go-gfx/gpu2d`](https://github.com/go-gfx/gpu2d) (v0.2.0) renders
+[`github.com/go-gfx/gpu2d`](https://github.com/go-gfx/gpu2d) (v0.3.0) renders
 2D on the GPU, in pure Go. A frame is one backend-neutral list of **instances**,
 one per primitive, 48 bytes each:
 
@@ -26,6 +26,9 @@ err = l.Rasterize(buf)       // CPU reference
 r, err := metal.New(1920, 1080)
 err = r.Draw(l)              // the same frame on a Mac's GPU
 ```
+
+Since v0.3.0, `Draw` is `Submit` plus `Wait`, and the pair overlaps the CPU
+with the GPU (see [Asynchronous submit](#async)).
 
 ## The reference {#reference}
 
@@ -54,6 +57,36 @@ indicative:
 | 3840 × 2160 | 52.5 ms | 1.62 ms | 2.79 ms |
 
 The GPU columns are whole frames: the draw and the wait for the GPU to finish.
+
+## Asynchronous submit {#async}
+
+On a small frame the GPU is not the cost: an empty dispatch alone is 0.41 ms,
+and `Draw` blocks the CPU for all of it. `Renderer.Submit` bins and packs a
+copy of the list into one of two slots of input buffers, sends it and returns;
+`Wait` collects the oldest frame:
+
+```go
+err = r.Submit(l) // returns at once; l may be Reset and re-recorded
+record(l)         // the next frame, while the GPU draws this one
+err = r.Wait()
+frame := r.Pixels() // safe to read only when nothing is in flight
+```
+
+Two frames may be in flight, compositing in submission order over the same
+`Pixels`. A third `Submit` or a `Draw` with frames in flight is `ErrBusy`, a
+`Wait` with none is `ErrNothingInFlight`, and `Close` waits first. It rests on
+`Device.Submit` and `Pending.Wait` in go-macos/metal v0.4.0. A 960 × 2834
+widget frame on an M4 Max, with 1.5 ms of CPU work per frame (the size of the
+gallery's recording), median of 10 interleaved rounds at a 1-minute load of
+8.0 to 8.2, so indicative:
+
+| CPU work per frame | `Draw` | `Submit` / `Wait` |
+|---|---:|---:|
+| 0 | 1.31 ms | 1.33 ms |
+| 1.5 ms | 3.17 ms | 1.78 ms |
+
+Recording and binning allocate nothing in steady state; go-macos/metal's
+message sends cost 129 allocations (5.4 KB) per frame.
 
 ## Pixels {#pixels}
 
