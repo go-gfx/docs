@@ -5,7 +5,7 @@ weight: 27
 
 # 2D on the GPU {#gpu2d}
 
-[`github.com/go-gfx/gpu2d`](https://github.com/go-gfx/gpu2d) (v0.1.0) renders
+[`github.com/go-gfx/gpu2d`](https://github.com/go-gfx/gpu2d) (v0.2.0) renders
 2D on the GPU, in pure Go. A frame is one backend-neutral list of **instances**,
 one per primitive, 48 bytes each:
 
@@ -29,12 +29,18 @@ err = r.Draw(l)              // the same frame on a Mac's GPU
 
 ## The reference {#reference}
 
-The list draws fills and one-pixel outlines of rectangles, square or with
-anti-aliased rounded corners, with any number of rings, under nested
-translations and clips. These are the primitives of go-widgets/painter's
-`PixelPainter`, and `Rasterize` reproduces it **byte for byte**. The
-`internal/parity` test compares the two over 3000 random scenes (42,256
-instances).
+The list draws these primitives, all under nested translations and clips:
+
+- fills and one-pixel outlines of rectangles, square or with anti-aliased
+  rounded corners, with any number of rings;
+- since v0.2.0, glyph masks (`DrawMask`), scaled images (`DrawImage`), and
+  paths (`DrawAlpha`, fed by the go-gfx/gfx/vector rasterizer). Masks and
+  images travel in a per-frame data arena that the GPU reads.
+
+These are the primitives of go-widgets/painter's `PixelPainter`, and
+`Rasterize` reproduces it **byte for byte**. The `internal/parity` test
+compares the two over 3000 random scenes, with 51,947 instances including
+2970 masks, 2999 images and 11,251 paths.
 
 ## Measured {#measured}
 
@@ -73,10 +79,9 @@ show there.
 
 ## Next {#next}
 
-1. Glyph masks, images and paths.
-2. A go-widgets `painter.Painter` adapter, presenting through the browser
+1. A go-widgets `painter.Painter` adapter, presenting through the browser
    canvas and a `CAMetalLayer`.
-3. A WGSL to MSL emitter in [wgsl]({{< relref "wgsl.md" >}}), so that the
+2. A WGSL to MSL emitter in [wgsl]({{< relref "wgsl.md" >}}), so that the
    coverage expression is written once.
 
 The design is in
