@@ -62,7 +62,7 @@ and `color`. This documentation tracks the module as it grows — see the
   WebGPU for Go programs in the browser (v0.15.0).
 - [2D on the GPU]({{< relref "gpu2d.md" >}}) — `github.com/go-gfx/gpu2d`,
   one instance list drawn by WebGPU or a Metal kernel and held to a CPU
-  reference (v0.1.0).
+  reference (v0.2.0).
 - [Architecture]({{< relref "architecture.md" >}}) — the foundation layering and why it exists.
 - [Roadmap]({{< relref "roadmap.md" >}}) — the plan and what ships today.
 
