@@ -88,6 +88,35 @@ gallery's recording), median of 10 interleaved rounds at a 1-minute load of
 Recording and binning allocate nothing in steady state; go-macos/metal's
 message sends cost 129 allocations (5.4 KB) per frame.
 
+## Presenting in a browser canvas {#present}
+
+Since v0.5.0, `webgpu.Renderer.Present(surface)` copies the renderer's target
+into the surface's current texture on the GPU, so the frame goes to the canvas
+without coming back to Go memory. Call it after `Draw`; the browser shows the
+canvas at the end of the task. The surface must be the renderer's size and be
+configured with `webgpu.CanvasDescriptor()`:
+
+```go
+desc := webgpu.CanvasDescriptor() // rgba8unorm, RENDER_ATTACHMENT | COPY_DST
+// ... configure the canvas surface with desc ...
+err = r.Draw(l, ground)
+err = r.Present(surface) // copyTextureToTexture, byte-exact
+```
+
+`CanvasDescriptor` is rgba8unorm, which is the target's own format, so the copy
+is byte-exact, with `COPY_DST` added to the default `RENDER_ATTACHMENT` because
+`copyTextureToTexture` requires it of its destination. A surface configured
+otherwise is refused with `ErrSurface`.
+
+A caller that replaces a renderer, for instance when a canvas is resized, calls
+`Renderer.Destroy()` on the old one (v0.5.1). It releases the buffers and the
+target texture and refunds them to the device's quota; without it each
+replacement keeps its memory charged. The renderer must not be used afterwards,
+and a second `Destroy` is harmless. The pipeline is not refunded, because WebGPU
+has no way to destroy one.
+[go-widgets/webcanvas](https://github.com/go-widgets/webcanvas) v0.9.0 presents
+this way.
+
 ## Pixels {#pixels}
 
 | back-end | opaque surface | translucent surface |
