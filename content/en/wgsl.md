@@ -50,6 +50,41 @@ security boundary: against the CTS it still wrongly accepts 88 invalid cases
 rejects none of the 130,057 valid ones.
 {{< /callout >}}
 
+## Metal Shading Language {#msl}
+
+Since v0.5.0, package `msl` emits MSL for named functions of a checked
+module, with every function they call and the structures they use:
+
+```go
+m, _ := wgsl.Parse(src)
+info, _ := wgsl.Check(m)
+out, err := msl.Functions(m, info, "coverage")
+```
+
+**Scope.** It covers plain functions over `bool`, `i32`, `u32` and `f32`,
+their vectors, and structures of those. Anything else is refused with its
+position, never emitted approximately: entry points, module-scope variables,
+loops, arrays, textures.
+
+**WGSL's semantics, not Metal's defaults.** Each rule is sourced in the
+repository's [docs/MSL.md](https://github.com/go-gfx/wgsl/blob/main/docs/MSL.md)
+from the two specifications:
+- fast math is off for the file;
+- library calls are the `precise::` ones;
+- signed `+`, `-`, `*` and `<<` wrap;
+- `/` and `%` give WGSL's results for a zero divisor and `MIN / -1`;
+- shift counts are taken modulo 32, and `>>` on `i32` is arithmetic;
+- `bitcast` keeps the bits.
+
+**Checked on the GPU.** A test runs the emitted code on a Mac's GPU against
+WGSL's definitions computed in Go:
+- 13 integer operations over 361 edge pairs;
+- `clamp`, `length`, `select`, `abs`, `min` and `max`, with the subnormal
+  flush-to-zero WGSL allows.
+
+With Metal's plain division, `1 / 0` comes back −1, where WGSL defines 1.
+go-gfx/gpu2d's Metal kernel generates its coverage functions this way.
+
 ## Bounds
 
 `Limits` caps the source size, the token count and the nesting depth. Deeply
