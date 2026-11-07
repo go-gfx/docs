@@ -97,10 +97,10 @@ canvas at the end of the task. The surface must be the renderer's size and be
 configured with `webgpu.CanvasDescriptor()`:
 
 ```go
-desc := webgpu.CanvasDescriptor() // rgba8unorm, RENDER_ATTACHMENT | COPY_DST
-// ... configure the canvas surface with desc ...
-err = r.Draw(l, ground)
-err = r.Present(surface) // copyTextureToTexture, byte-exact
+desc := gpu2dwebgpu.CanvasDescriptor() // rgba8unorm, RENDER_ATTACHMENT | COPY_DST
+s, err := device.NewSurfaceFromCanvas(offscreen, desc)
+err = r.Draw(list, nil)
+err = r.Present(s) // copyTextureToTexture, byte-exact
 ```
 
 `CanvasDescriptor` is rgba8unorm, which is the target's own format, so the copy
