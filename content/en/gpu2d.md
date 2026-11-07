@@ -139,12 +139,22 @@ show there.
 - `FuzzList` checks that nothing is recorded past these bounds and that
   nothing is written past the surface.
 
-## Next {#next}
+## One coverage, written in WGSL {#generated}
 
-1. A go-widgets `painter.Painter` adapter, presenting through the browser
-   canvas and a `CAMetalLayer`.
-2. A WGSL to MSL emitter in [wgsl]({{< relref "wgsl.md" >}}), so that the
-   coverage expression is written once.
+Since v0.5.2 the Metal kernel's `Inst`, `cornerCenter` and `coverage` are
+not written by hand. They are generated from the WebGPU shader by
+[wgsl]({{< relref "wgsl.md#msl" >}})'s `msl` package (`go generate ./metal`
+writes `metal/coverage_gen.metal`), so the coverage arithmetic exists once,
+in WGSL, next to the Go reference.
+
+- **Byte-identical:** the kernel matches the CPU reference, with max |Δ| 0
+  over 3,686,400 channels.
+- **Drift guard:** `TestCoverageMetalIsGenerated` fails on every platform
+  when the WGSL changes without the Metal file being regenerated.
+
+The go-widgets `painter.Painter` adapter ([go-widgets/gpupainter](https://github.com/go-widgets/gpupainter))
+and presentation are done: a `CAMetalLayer` in go-widgets/window v0.90.0,
+and the browser canvas in go-widgets/webcanvas v0.9.0.
 
 The design is in
 [docs/DESIGN.md](https://github.com/go-gfx/gpu2d/blob/main/docs/DESIGN.md).
