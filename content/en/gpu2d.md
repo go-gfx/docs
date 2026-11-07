@@ -97,16 +97,27 @@ canvas at the end of the task. The surface must be the renderer's size and be
 configured with `webgpu.CanvasDescriptor()`:
 
 ```go
-desc := gpu2dwebgpu.CanvasDescriptor() // rgba8unorm, RENDER_ATTACHMENT | COPY_DST
+desc := gpu2dwebgpu.CanvasDescriptor() // the browser's preferred canvas format
 s, err := device.NewSurfaceFromCanvas(offscreen, desc)
 err = r.Draw(list, nil)
-err = r.Present(s) // copyTextureToTexture, byte-exact
+err = r.Present(s) // byte-exact in either format
 ```
 
-`CanvasDescriptor` is rgba8unorm, which is the target's own format, so the copy
-is byte-exact, with `COPY_DST` added to the default `RENDER_ATTACHMENT` because
-`copyTextureToTexture` requires it of its destination. A surface configured
-otherwise is refused with `ErrSurface`.
+Since v0.6.0, `CanvasDescriptor` follows `getPreferredCanvasFormat`:
+
+- **bgra8unorm** (macOS, Windows): `Present` draws the target into it with
+  `PresentShader`, a `textureLoad` at each pixel. `unorm8 → float → unorm8`
+  gives back the same byte.
+- **rgba8unorm** elsewhere, with `COPY_DST`: `Present` copies with
+  `copyTextureToTexture`, which is byte-exact because it is the target's own
+  format.
+- **Anything else** is refused with `ErrSurface`.
+
+The preferred format matters: a canvas in another one costs an extra copy in
+the browser's compositor. Measured by `internal/presentbench` (a real page,
+`WidgetFrame` at 4K, until the GPU finished, Apple M4 Max, 8 interleaved
+rounds): **1.053 ms per frame in rgba8unorm against 0.792 ms in bgra8unorm
+(−24.8 %, p = 0.000)**.
 
 A caller that replaces a renderer, for instance when a canvas is resized, calls
 `Renderer.Destroy()` on the old one (v0.5.1). It releases the buffers and the
