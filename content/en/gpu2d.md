@@ -113,11 +113,18 @@ Since v0.6.0, `CanvasDescriptor` follows `getPreferredCanvasFormat`:
   format.
 - **Anything else** is refused with `ErrSurface`.
 
-The preferred format matters: a canvas in another one costs an extra copy in
-the browser's compositor. Measured by `internal/presentbench` (a real page,
-`WidgetFrame` at 4K, until the GPU finished, Apple M4 Max, 8 interleaved
-rounds): **1.053 ms per frame in rgba8unorm against 0.792 ms in bgra8unorm
-(−24.8 %, p = 0.000)**.
+The preferred format matters, because a canvas in another one costs an extra
+copy in the browser's compositor. `internal/presentbench` measured it with a
+real page drawing `WidgetFrame` at 4K, timed until the GPU finished, over 8
+interleaved rounds per platform, with the adapter logged in each:
+
+| 4K frame | rgba8unorm | bgra8unorm |
+|---|---:|---:|
+| Apple M4 Max, macOS (prefers bgra8unorm) | 1.053 ms | **0.792 ms** (−24.8 %) |
+| AMD Radeon PRO W7700, Linux on Vulkan (prefers rgba8unorm) | **0.704 ms** | 1.083 ms (+53.7 %) |
+
+The preferred format wins on both, although they are opposite formats. That
+is why `CanvasDescriptor` asks the browser instead of fixing one.
 
 A caller that replaces a renderer, for instance when a canvas is resized, calls
 `Renderer.Destroy()` on the old one (v0.5.1). It releases the buffers and the
