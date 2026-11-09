@@ -5,7 +5,7 @@ weight: 27
 
 # 2D on the GPU {#gpu2d}
 
-[`github.com/go-gfx/gpu2d`](https://github.com/go-gfx/gpu2d) (v0.6.1) renders
+[`github.com/go-gfx/gpu2d`](https://github.com/go-gfx/gpu2d) (v0.6.2) renders
 2D on the GPU, in pure Go. A frame is one backend-neutral list of **instances**,
 one per primitive, 48 bytes each:
 
@@ -91,15 +91,20 @@ allocations.
 
 `Submit`'s cost is almost all CPU-side packing: binning the list into 16 × 16
 tiles and copying it into the slot. Encoding and Metal's commit add about
-14 µs. Since gpu2d v0.6.1, binning runs in plain loops rather than a callback
-per (instance, tile) pair. Measured on an M4 Max, 8 interleaved rounds at a
-1-minute load of at most 8:
+14 µs.
+- **v0.6.1:** binning runs in plain loops rather than a callback per
+  (instance, tile) pair.
+- **v0.6.2:** binning writes straight into the slot's Metal buffers, so the
+  indices are never copied.
 
-| | v0.6.0 | v0.6.1 |
-|---|---:|---:|
-| `Bin`, 960 × 2834 widget frame | 148.0 µs | 48.3 µs |
-| `Submit`, `WidgetFrame` at 1920 × 1080 | 164.9 µs | 81.9 µs |
-| `Submit`, `WidgetFrame` at 1920 × 5668 | 782.9 µs | 370.9 µs |
+Measured on an M4 Max, 8 interleaved rounds at a 1-minute load of at most 8,
+each column an A/B run against the previous tag:
+
+| | v0.6.0 | v0.6.1 | v0.6.2 |
+|---|---:|---:|---:|
+| `Bin`, 960 × 2834 widget frame | 148.0 µs | 48.3 µs | 48.3 µs |
+| `Submit`, `WidgetFrame` at 1920 × 1080 | 164.9 µs | 80.4 µs | 57.3 µs |
+| `Submit`, `WidgetFrame` at 1920 × 5668 | 782.9 µs | 364.7 µs | 242.2 µs |
 
 ## Presenting in a browser canvas {#present}
 
