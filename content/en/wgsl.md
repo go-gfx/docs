@@ -85,6 +85,41 @@ WGSL's definitions computed in Go:
 With Metal's plain division, `1 / 0` comes back −1, where WGSL defines 1.
 go-gfx/gpu2d's Metal kernel generates its coverage functions this way.
 
+## SPIR-V {#spirv}
+
+Since v0.9.0, `spirv.Module(module, info, spirv.Options{}, entries...)` emits
+a SPIR-V 1.5 module (the Vulkan 1.2 environment) for compute entry points:
+storage and uniform buffers of group 0, scalar and vector arithmetic, and
+`if`, `for`, `while` and `loop` with `break` and `continue`. It is the subset a
+fill kernel needs; the rest is refused as a `*spirv.Error` with its position.
+[docs/SPIRV.md](https://github.com/go-gfx/wgsl/blob/main/docs/SPIRV.md) lists
+both, with the specification sections used.
+
+- The numbers come from Khronos's `spirv.core.grammar.json`, through a
+  generator.
+- A decoder checks every module on every platform (logical layout, structured
+  control flow, the entry-point interface) and must refuse ten mutated ones.
+- `spirv-val` validates the output in CI. It has not been run on a GPU by this
+  package; go-gfx/gpu2d's `vulkan` back-end runs it on lavapipe.
+
+## HLSL {#hlsl}
+
+Since v0.9.0, `hlsl.Module(module, info, entries...)` emits High-Level Shading
+Language for Shader Model 5.0, to be compiled for `cs_5_0` with `D3DCompile`
+and `D3DCOMPILE_IEEE_STRICTNESS`: compute entry points, `read` storage arrays
+as `StructuredBuffer` at `t<binding>`, `read_write` ones as
+`RWStructuredBuffer` at `u<binding>`, a uniform as a `cbuffer`, WGSL's integer
+and float rules, and every float operation kept `precise` (no fused `mad`). It
+takes the whole of gpu2d's `kernel.wgsl`; the rest is refused as a
+`*hlsl.Error` with its position
+([docs/HLSL.md](https://github.com/go-gfx/wgsl/blob/main/docs/HLSL.md)).
+
+- The emitted kernel and 24 refusals are checked on every platform.
+- On Direct3D 11 WARP (a nested module on `windows-latest`, through
+  go-mswin/d3d11) every emitted file is compiled by `D3DCompile` and the
+  integer, float and conversion edge cases are held to WGSL's definition; two
+  break checks show the tests can fail. No GPU has run it.
+
 ## Bounds
 
 `Limits` caps the source size, the token count and the nesting depth. Deeply
