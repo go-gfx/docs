@@ -5,7 +5,7 @@ weight: 27
 
 # 2D on the GPU {#gpu2d}
 
-[`github.com/go-gfx/gpu2d`](https://github.com/go-gfx/gpu2d) (v0.6.2) renders
+[`github.com/go-gfx/gpu2d`](https://github.com/go-gfx/gpu2d) (v0.7.0) renders
 2D on the GPU, in pure Go. A frame is one backend-neutral list of **instances**,
 one per primitive, 48 bytes each:
 
@@ -158,12 +158,34 @@ this way.
 | back-end | opaque surface | translucent surface |
 |---|---|---|
 | Metal compute | identical on every channel | identical on every channel |
-| WebGPU | identical on every channel | colour identical; alpha up to 4 apart |
+| WebGPU, `New` (fixed-function) | identical on every channel | colour identical; alpha up to 4 apart |
+| WebGPU, `NewCompute` (v0.7.0) | identical on every channel | identical on every channel |
 
-The Metal kernel blends with the reference's integer arithmetic. WebGPU uses
-fixed-function blending, which rounds where `PixelPainter` floors
-`a + dst·(255−a)/255`. A window surface is opaque, so the difference does not
-show there.
+The Metal kernel blends with the reference's integer arithmetic. WebGPU's
+default renderer uses fixed-function blending, which rounds where
+`PixelPainter` floors `a + dst·(255−a)/255`. A window surface is opaque, so
+the difference does not show there.
+
+### Compute mode {#compute}
+
+Since v0.7.0, `webgpu.NewCompute` draws with `kernel.wgsl`: the whole raster
+kernel as one WGSL compute shader, with the same integer blend as Metal. It
+is byte-identical to `Rasterize` on both grounds, measured in Chromium on an
+M4 Max and on the CI's SwiftShader lane.
+
+It is also slower, which is why it is not the default. Measured with Draw
+plus Present, 8 interleaved rounds at a 1-minute load of at most 8:
+
+| frame | `New` | `NewCompute` |
+|---|---:|---:|
+| 1080p widget frame | 244.9 µs | 385.0 µs |
+| 4K widget frame | 745.3 µs | 1015.4 µs |
+| 960 × 2834 gallery | 290.6 µs | 444.3 µs |
+
+The compute frame includes CPU binning in wasm. Choose it where a translucent
+surface must match the CPU byte for byte. The same kernel is the source for
+the planned Vulkan and Direct3D 11 back-ends
+([NATIVE.md](https://github.com/go-gfx/gpu2d/blob/main/docs/NATIVE.md)).
 
 ## Bounds {#bounds}
 
