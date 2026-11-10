@@ -5,7 +5,7 @@ weight: 27
 
 # 2D on the GPU {#gpu2d}
 
-[`github.com/go-gfx/gpu2d`](https://github.com/go-gfx/gpu2d) (v0.7.0) renders
+[`github.com/go-gfx/gpu2d`](https://github.com/go-gfx/gpu2d) (v0.10.0) renders
 2D on the GPU, in pure Go. A frame is one backend-neutral list of **instances**,
 one per primitive, 48 bytes each:
 
@@ -14,6 +14,11 @@ one per primitive, 48 bytes each:
   [go-gfx/webgpu]({{< relref "webgpu.md" >}}).
 - Package `metal` draws it with a compute kernel through
   [go-macos/metal](https://github.com/go-macos/metal).
+- Package `vulkan` (Linux) draws it through
+  [go-gfx/vulkan](https://github.com/go-gfx/vulkan); see [Vulkan](#vulkan).
+- Package `d3d11` (Windows, opt-in) draws it through
+  [go-mswin/d3d11](https://github.com/go-mswin/d3d11); see
+  [Direct3D 11](#d3d11).
 
 ```go
 l, err := gpu2d.NewList(1920, 1080)
@@ -184,8 +189,104 @@ plus Present, 8 interleaved rounds at a 1-minute load of at most 8:
 
 The compute frame includes CPU binning in wasm. Choose it where a translucent
 surface must match the CPU byte for byte. The same kernel is the source for
-the planned Vulkan and Direct3D 11 back-ends
+the Vulkan and Direct3D 11 back-ends below
 ([NATIVE.md](https://github.com/go-gfx/gpu2d/blob/main/docs/NATIVE.md)).
+
+## One kernel, three shading languages {#kernel}
+
+`kernel.wgsl` is the only place the raster arithmetic is written. The native
+back-ends do not carry a hand-written copy; each file is generated from it by
+[go-gfx/wgsl]({{< relref "wgsl.md" >}}), and a test fails on every platform
+when the WGSL changes without the generated file being regenerated:
+
+| back-end | generated file | emitter |
+|---|---|---|
+| Metal | `metal/kernel_gen.metal` | `msl` |
+| Vulkan | `vulkan/kernel_gen.spv` | `spirv` |
+| Direct3D 11 | `d3d11/kernel_gen.hlsl`, compiled to `kernel_gen.dxbc` | `hlsl` |
+
+## Vulkan (Linux) {#vulkan}
+
+```go
+r, err := vulkan.New(w, h) // errors.Is(err, vulkan.ErrUnsupported) without a Vulkan loader
+copy(r.Pixels(), ground)
+err = r.Draw(list)         // Submit, then Wait; r.Pixels() holds the frame
+```
+
+**How it is chosen.** There is no automatic choice inside gpu2d: a program
+calls `vulkan.New(w, h)` (or `NewWith` for validation or a vendor filter) the
+way it calls `metal.New`. It has the same shape as `metal`: `Draw`, `Submit`
+and `Wait` over two slots, `Pixels`, `Resize`, `Close`, `Name`.
+
+It runs the kernel through
+[go-gfx/vulkan](https://github.com/go-gfx/vulkan), a pure-Go binding that
+loads `libvulkan.so.1` through purego: no cgo, 64-bit Linux, compute only. The
+buffers are host-visible and coherent, so `List.Bin` bins straight into the
+slot's buffer, as on Metal. Two frames are really in flight, ordered by a
+memory barrier at the start of each frame's command buffer. There is no
+presentation yet.
+
+**The proof.** CI runs the package on lavapipe (Mesa's software Vulkan) with
+the Khronos validation layer, failing on any message. `TestMatchesReference`
+finds 0 differing channels, on an opaque and a translucent ground.
+
+{{< callout type="warning" >}}
+lavapipe proves the bindings and the kernel, not the arithmetic or the speed
+of a GPU. No real-GPU Vulkan result has been measured yet, and this page gives
+no Vulkan timings for that reason.
+{{< /callout >}}
+
+**Fallbacks.** Where there is no loader (and on every platform other than
+64-bit Linux), `New` returns an error satisfying
+`errors.Is(err, vulkan.ErrUnsupported)`, and the caller keeps the CPU
+reference. A frame past a device limit (`maxStorageBufferRange`, guaranteed
+only at 2^27 bytes, or `maxComputeWorkGroupCount`) is refused with
+`gpu2d.ErrTooLarge` before anything is dispatched.
+
+## Direct3D 11 (Windows, opt-in) {#d3d11}
+
+```go
+r, err := d3d11.New(w, h) // errors.Is(err, d3d11.ErrUnsupported) off Windows
+copy(r.Pixels(), ground)
+err = r.Draw(list)        // Submit, then Wait; r.Pixels() holds the frame
+```
+
+**How it is chosen.** Opt-in: a program asks for `d3d11.New(w, h)`, or
+`NewWith` with `Options.Software` to ask for WARP. Nothing selects it for a
+program that did not.
+
+It runs the kernel through
+[go-mswin/d3d11](https://github.com/go-mswin/d3d11) (pure Go, COM through
+syscall, no cgo). The kernel is `d3d11/kernel_gen.hlsl`, generated from
+`kernel.wgsl`, and `kernel_gen.dxbc` is that HLSL compiled by `D3DCompile` on
+the Windows CI lane and committed with a record of the compiler and hashes:
+nothing is compiled at run time.
+
+Direct3D 11 has no persistently mapped, GPU-writable buffer, so `Pixels` is a
+host copy and `Draw` pays two copies that Metal and Vulkan do not: an upload of
+the target when nothing is in flight, and a read-back into `Pixels` when the
+last frame ends. Frames queued with `Submit` stay on the device between them.
+`Renderer.Stats` splits the wall time into packing, target upload, device time
+and read-back.
+
+**The proof.** CI runs the package on WARP, the software device of a
+`windows-latest` runner, and finds parity with `Rasterize` there.
+
+{{< callout type="warning" >}}
+Only WARP has run it. Parity on WARP measures WARP's arithmetic, not any GPU,
+and no Windows GPU has run the package. Any timing taken on WARP is a software
+figure and says nothing about a GPU, so none is quoted here. A device that
+disagrees is to be named by `TestMatchesReference`.
+{{< /callout >}}
+
+**Fallbacks.** Off Windows the constructors return `ErrUnsupported`; with no
+device, `ErrNoDevice`. A caller falls back to the CPU. A frame past the
+device's buffer limit (128 MiB on WARP, so a square frame above 5792 pixels)
+or past 65535 thread groups per dimension is refused with `gpu2d.ErrTooLarge`.
+
+How the native back-ends are presented, and the measured split of the Direct3D
+11 copies, is in
+[docs/NATIVE.md](https://github.com/go-gfx/gpu2d/blob/main/docs/NATIVE.md).
 
 ## Bounds {#bounds}
 
