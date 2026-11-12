@@ -242,9 +242,13 @@ finds 0 differing channels, on an opaque and a translucent ground.
 
 `Draw` is 52 times (1080p) and 55 times (4K) faster than `Rasterize` on one
 core. When the frame is read back, as a program that needs the bytes must, it is
-5.9 and 6.7 times faster. The read-back goes through a stage in host-cached
-memory; `Sync` waits for every frame in flight and downloads the device's frame
-into `Pixels`, and `Pixels` does the same without a way to return the error.
+5.9 and 6.7 times faster. The read-back goes through a stage in memory that
+go-gfx/vulkan prefers to be host-cached (preferably, not guaranteed); `Sync`
+waits for every frame in flight and downloads the device's frame into `Pixels`.
+`Pixels` downloads the same way, without a way to return the error, and also
+marks the frame for re-upload on the next `Draw`; the benchmark copies the
+bytes into a sink. That upload is why `Draw` plus read-back (4.57 ms at 1080p)
+costs about twice `Draw` plus `Sync` (2.12 ms).
 These are a different machine from the M4 Max table above; do not compare the
 two tables.
 
