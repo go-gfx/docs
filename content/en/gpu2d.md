@@ -5,7 +5,7 @@ weight: 27
 
 # 2D on the GPU {#gpu2d}
 
-[`github.com/go-gfx/gpu2d`](https://github.com/go-gfx/gpu2d) (v0.10.0) renders
+[`github.com/go-gfx/gpu2d`](https://github.com/go-gfx/gpu2d) (v0.12.0) renders
 2D on the GPU, in pure Go. A frame is one backend-neutral list of **instances**,
 one per primitive, 48 bytes each:
 
@@ -230,10 +230,28 @@ presentation yet.
 the Khronos validation layer, failing on any message. `TestMatchesReference`
 finds 0 differing channels, on an opaque and a translucent ground.
 
+**On a real GPU.** Measured on an AMD Radeon PRO W7700 (RADV, Mesa 25.2.8),
+`GOMAXPROCS=1`, abbench with 8 rounds, 1-minute load below 2:
+
+| measure | 1080p | 4K |
+|---|---:|---:|
+| `Draw` | 0.524 ms | 1.984 ms |
+| CPU `Rasterize`, one core | 27.13 ms | 110.0 ms |
+| `Draw` plus read-back into `Pixels` | 4.57 ms | 16.4 ms |
+| `Draw` plus `Sync` | 2.12 ms | 7.13 ms |
+
+`Draw` is 52 times (1080p) and 55 times (4K) faster than `Rasterize` on one
+core. When the frame is read back, as a program that needs the bytes must, it is
+5.9 and 6.7 times faster. The read-back goes through a stage in host-cached
+memory; `Sync` waits for every frame in flight and downloads the device's frame
+into `Pixels`, and `Pixels` does the same without a way to return the error.
+These are a different machine from the M4 Max table above; do not compare the
+two tables.
+
 {{< callout type="warning" >}}
-lavapipe proves the bindings and the kernel, not the arithmetic or the speed
-of a GPU. No real-GPU Vulkan result has been measured yet, and this page gives
-no Vulkan timings for that reason.
+lavapipe proves the bindings and the kernel; the table above is RADV on one
+card. Other GPUs and drivers have not been measured. After a fence timeout the
+renderer is lost and `Pixels` may return torn bytes; only `Close` it.
 {{< /callout >}}
 
 **Fallbacks.** Where there is no loader (and on every platform other than
@@ -314,6 +332,20 @@ in WGSL, next to the Go reference.
 The go-widgets `painter.Painter` adapter ([go-widgets/gpupainter](https://github.com/go-widgets/gpupainter))
 and presentation are done: a `CAMetalLayer` in go-widgets/window v0.90.0,
 and the browser canvas in go-widgets/webcanvas v0.9.0.
+
+### Rounded corners are exact since v0.12.0 {#corners}
+
+Before v0.12.0 the kernels disagreed with `Rasterize` on some pixels of a
+rounded corner at some radii (counts below). Since v0.12.0 the coverage of a corner is decided in 32-bit integers from
+the exact squared distance, in the Metal and Vulkan kernel, in the CPU
+reference and in the WebGPU shader. `MaxRadius` is 16383.
+
+Measured at every radius from 1 to 64, the number of channels that differ from
+`Rasterize` is now 0 on Metal, on RADV and on lavapipe, where it was 366,
+6,580 and 2,742 respectively. Those three back-ends are the ones measured on
+that corner-heavy corpus. Direct3D 11 on WARP and WebGPU in the browser ran the
+random scenes only, not the corner corpus, so this page makes no radius-by-radius
+claim for them.
 
 The design is in
 [docs/DESIGN.md](https://github.com/go-gfx/gpu2d/blob/main/docs/DESIGN.md).
